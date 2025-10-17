@@ -1,375 +1,642 @@
-# Quiz Master - Application de Quiz Interactive
+# TP INFO910
 
-Application web de quiz interactive conteneurisée avec Docker et déployable sur Kubernetes.
+**Université Savoie Mont Blanc - Master 2 Informatique**
+**Année universitaire 2025-2026**
 
 ## Membres du binôme
 
-- [Votre nom]
-- [Nom du binôme]
+- **CHARRIER Simon** -
+- **JBILOU Adam** -
 
-## Description de l'application
+---
 
-Quiz Master est une application web interactive qui permet aux utilisateurs de :
+## Table des matières
 
-- **Jouer à des quiz** : Répondre à des questions à choix multiples provenant de l'API Open Trivia Database
-- **Choisir la difficulté** : Easy, Medium, Hard ou Any
-- **Sélectionner une catégorie** : Plus de 20 catégories disponibles (Histoire, Science, Sports, etc.)
-- **Voir les résultats** : Score en temps réel et pourcentage de réussite
-- **Consulter le leaderboard** : Tableau des meilleurs scores enregistrés
-- **Sauvegarder les scores** : Tous les résultats sont stockés dans MongoDB
+1. [Présentation de l'application](#présentation-de-lapplication)
+2. [Réponse au sujet du TP](#réponse-au-sujet-du-tp)
+3. [Architecture et technologies](#architecture-et-technologies)
+4. [Utilisation de l'application](#utilisation-de-lapplication)
+5. [Déploiement sur Kubernetes](#déploiement-sur-kubernetes)
+6. [Structure du projet](#structure-du-projet)
+7. [Fichiers importants](#fichiers-importants)
 
-## Architecture
+---
 
-L'application suit une architecture microservices avec 3 conteneurs :
+## Présentation de l'application
 
-1. **Frontend** : Application React servie par Nginx
-2. **Backend** : API REST Node.js/Express qui communique avec l'API Open Trivia Database
-3. **Base de données** : MongoDB pour le stockage des scores
+**Quiz Master** est une application web interactive de quiz qui permet aux utilisateurs de tester leurs connaissances sur diverses catégories.
+
+### Fonctionnalités principales
+
+- **Jeu de quiz interactif** : Questions à choix multiples provenant de l'API Open Trivia Database
+- **Personnalisation** : Choix de la catégorie (Histoire, Science, Sports, etc.) et de la difficulté (Easy, Medium, Hard)
+- **Suivi des scores** : Enregistrement et consultation des meilleurs scores dans une base MongoDB
+- **Leaderboard** : Classement des 10 meilleurs joueurs
+- **Interface responsive** : Design moderne et adaptatif
+
+### Comment l'utiliser
+
+1. Entrez votre nom de joueur
+2. Sélectionnez une catégorie (optionnel)
+3. Choisissez un niveau de difficulté (optionnel)
+4. Cliquez sur "Start Quiz"
+5. Répondez aux 10 questions proposées
+6. Consultez votre score final et le leaderboard
+
+---
+
+## Réponse au sujet du TP
+
+Ce projet répond intégralement aux exigences du TP INFO910 :
+
+### ✅ Application conteneurisée avec au moins deux conteneurs
+
+L'application est composée de **trois conteneurs Docker** :
+
+1. **Frontend** (React + Nginx) - Interface utilisateur
+2. **Backend** (Node.js + Express) - API REST et logique métier
+3. **MongoDB** - Stockage persistant des scores
+
+**Fichiers Docker concernés :**
+- `frontend/Dockerfile` - Construction du conteneur frontend (build multi-stage)
+- `backend/Dockerfile` - Construction du conteneur backend
+- `docker-compose.yml` - Orchestration locale des 3 conteneurs
+
+### ✅ Déployable sur cluster Kubernetes
+
+L'application est entièrement déployable sur Kubernetes avec des manifestes originaux :
+
+**Manifestes Kubernetes créés (dossier `k8s/`):**
+- `namespace.yaml` - Namespace dédié à l'application
+- `mongodb-pv.yaml` - PersistentVolume pour la persistance des données
+- `mongodb-deployment.yaml` - Deployment MongoDB + Service ClusterIP
+- `backend-deployment.yaml` - Deployment Backend (2 replicas) + Service ClusterIP + Health checks
+- `frontend-deployment.yaml` - Deployment Frontend (2 replicas) + Service NodePort
+
+**Fonctionnalités Kubernetes implémentées :**
+- ✅ Réplication des services (2 replicas backend, 2 replicas frontend)
+- ✅ Gestion du stockage persistant (PersistentVolume/PersistentVolumeClaim)
+- ✅ Services réseau (ClusterIP pour communication interne, NodePort pour accès externe)
+- ✅ Health checks (Liveness & Readiness probes)
+- ✅ Gestion des ressources (requests/limits CPU et RAM)
+- ✅ Variables d'environnement pour configuration
+
+---
+
+## Architecture et technologies
+
+### Architecture microservices
 
 ```
-┌─────────────┐
-│   Frontend  │  (Port 3000/30080)
-│  (React)    │
-│  + Nginx    │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐         ┌──────────────────┐
-│   Backend   │  ────>  │  Open Trivia DB  │
-│  (Node.js)  │  <────  │      API         │
-│  + Express  │         │  (opentdb.com)   │
-└──────┬──────┘         └──────────────────┘
-       │
-       ▼
-┌─────────────┐
-│   MongoDB   │  (Port 27017)
-│  + Volume   │
-└─────────────┘
+┌─────────────────┐
+│   Frontend      │  Port 3000 (Docker) / 30080 (K8s)
+│   React + Nginx │  Service NodePort
+└────────┬────────┘
+         │ HTTP
+         ▼
+┌─────────────────┐         ┌──────────────────┐
+│   Backend       │  ────>  │  Open Trivia API │
+│   Node.js       │  <────  │  (externe)       │
+│   Express       │         └──────────────────┘
+│   Port 5000     │
+│   ClusterIP     │
+└────────┬────────┘
+         │ Mongoose
+         ▼
+┌─────────────────┐
+│   MongoDB       │  Port 27017
+│   + Volume      │  Service ClusterIP
+│   Persistant    │  PersistentVolume 1Gi
+└─────────────────┘
 ```
 
-### Technologies utilisées
+### Stack technique
 
-- **Frontend** : React 18, Axios, CSS3
-- **Backend** : Node.js, Express, Mongoose, node-fetch
-- **Base de données** : MongoDB 7.0
-- **Conteneurisation** : Docker, Docker Compose
-- **Orchestration** : Kubernetes
-- **API externe** : Open Trivia Database (opentdb.com)
+**Frontend:**
+- React 18
+- Axios (requêtes HTTP)
+- CSS3 (design responsive)
+- Nginx (serveur web de production)
 
-## Comment utiliser l'application
+**Backend:**
+- Node.js (runtime JavaScript)
+- Express (framework web)
+- Mongoose (ODM MongoDB)
+- API REST avec validation
+
+**Base de données:**
+- MongoDB 7.0 (base NoSQL)
+- Collections : `scores` (leaderboard)
+
+**Conteneurisation & Orchestration:**
+- Docker (conteneurisation)
+- Docker Compose (développement local)
+- Kubernetes (orchestration en production)
+
+---
+
+## Utilisation de l'application
 
 ### Prérequis
 
-- Docker et Docker Compose installés
-- Ports 3000, 5000 et 27017 disponibles
+- **Docker** et **Docker Compose** installés
+- **Kubernetes** (Minikube, K3s ou cluster cloud)
+- **kubectl** configuré
+- Ports disponibles : 3000, 5000, 27017
 
-### Lancement avec Docker Compose
+### Option 1 : Lancement avec Docker Compose (développement)
 
-1. Cloner le dépôt :
 ```bash
-git clone [URL_DU_DEPOT]
-cd projet
-```
+# Cloner le dépôt
+git clone <url-du-depot>
+cd INFO910
 
-2. Lancer l'application :
-```bash
+# Lancer l'application
 docker-compose up --build
-```
 
-3. Accéder à l'application :
-- Frontend : http://localhost:3000
-- Backend API : http://localhost:5000
-- MongoDB : localhost:27017
+# Accéder à l'application
+# Frontend : http://localhost:3000
+# Backend : http://localhost:5000
+# MongoDB : localhost:27017
 
-4. Arrêter l'application :
-```bash
+# Arrêter l'application
 docker-compose down
 ```
 
-### Utilisation de l'interface
+### Option 2 : Déploiement sur Kubernetes (production)
 
-1. **Page d'accueil** :
-   - Entrez votre nom
-   - Sélectionnez une catégorie (optionnel)
-   - Choisissez la difficulté (optionnel)
-   - Cliquez sur "Start Quiz"
+Voir section suivante "Déploiement sur Kubernetes".
 
-2. **Pendant le quiz** :
-   - Lisez la question
-   - Cliquez sur votre réponse
-   - Voyez si c'est correct ou incorrect
-   - Passez à la question suivante
-
-3. **Résultats** :
-   - Consultez votre score final
-   - Voyez votre pourcentage de réussite
-   - Rejouez ou consultez le leaderboard
-
-4. **Leaderboard** :
-   - Top 10 des meilleurs scores
-   - Affiche le nom, score, catégorie et difficulté
+---
 
 ## Déploiement sur Kubernetes
 
-### Prérequis
+### Prérequis Kubernetes
 
-- Cluster Kubernetes opérationnel (minikube, k3s, ou cloud provider)
-- kubectl installé et configuré
+- Cluster Kubernetes fonctionnel (Minikube recommandé pour le TP)
+- `kubectl` installé et configuré
+- `minikube` installé (pour environnement local)
 
-### Étapes de déploiement
+### Étape 1 : Démarrer Minikube
 
-1. Se placer dans le dossier du projet :
 ```bash
-cd projet
+# Démarrer le cluster Minikube
+minikube start --driver=docker
+
+# Vérifier que le cluster est opérationnel
+kubectl cluster-info
+kubectl get nodes
 ```
 
-2. Appliquer les manifestes Kubernetes dans l'ordre :
+### Étape 2 : Construire les images Docker
+
+Les images doivent être construites dans l'environnement Docker de Minikube :
 
 ```bash
-# 1. Créer le namespace (optionnel)
-kubectl apply -f kubernetes/namespace.yaml
+# Configurer le shell pour utiliser le daemon Docker de Minikube
+eval $(minikube docker-env)
 
-# 2. Déployer MongoDB avec son PersistentVolume
-kubectl apply -f kubernetes/mongodb-pv.yaml
-kubectl apply -f kubernetes/mongodb-deployment.yaml
-kubectl apply -f kubernetes/mongodb-service.yaml
+# Construire les images
+docker build -t quiz-frontend:latest ./frontend
+docker build -t quiz-backend:latest ./backend
+
+# Vérifier les images
+docker images | grep quiz
+```
+
+**Alternative : Utiliser le script fourni**
+
+```bash
+./scripts/build-images.sh
+```
+
+### Étape 3 : Déployer l'application sur Kubernetes
+
+**Option A : Déploiement manuel (recommandé pour comprendre l'ordre)**
+
+```bash
+# 1. Créer le namespace
+kubectl apply -f k8s/namespace.yaml
+
+# 2. Créer le PersistentVolume pour MongoDB
+kubectl apply -f k8s/mongodb-pv.yaml
+
+# 3. Déployer MongoDB (Deployment + PVC + Service)
+kubectl apply -f k8s/mongodb-deployment.yaml
 
 # Attendre que MongoDB soit prêt
-kubectl wait --for=condition=ready pod -l app=mongodb -n quiz-app --timeout=120s
+kubectl wait --for=condition=ready pod -l app=mongodb --timeout=120s
 
-# 3. Déployer le backend
-kubectl apply -f kubernetes/backend-deployment.yaml
-kubectl apply -f kubernetes/backend-service.yaml
+# 4. Déployer le Backend (Deployment + Service)
+kubectl apply -f k8s/backend-deployment.yaml
 
-# Attendre que le backend soit prêt
-kubectl wait --for=condition=ready pod -l app=backend -n quiz-app --timeout=120s
+# Attendre que le Backend soit prêt
+kubectl wait --for=condition=ready pod -l app=backend --timeout=120s
 
-# 4. Déployer le frontend
-kubectl apply -f kubernetes/frontend-deployment.yaml
-kubectl apply -f kubernetes/frontend-service.yaml
+# 5. Déployer le Frontend (Deployment + Service)
+kubectl apply -f k8s/frontend-deployment.yaml
+
+# Attendre que le Frontend soit prêt
+kubectl wait --for=condition=ready pod -l app=frontend --timeout=120s
 ```
 
-3. Vérifier le déploiement :
+**Option B : Déploiement automatique avec script**
+
 ```bash
-# Vérifier les pods
-kubectl get pods -n quiz-app
+./scripts/deploy-k8s.sh
+```
 
-# Vérifier les services
-kubectl get services -n quiz-app
+### Étape 4 : Vérifier le déploiement
 
-# Vérifier les PersistentVolumes
+```bash
+# Vérifier tous les pods
+kubectl get pods
+
+# Vérifier tous les services
+kubectl get services
+
+# Vérifier le PersistentVolume
 kubectl get pv
-kubectl get pvc -n quiz-app
+kubectl get pvc
+
+# Voir les logs en cas de problème
+kubectl logs -l app=backend
+kubectl logs -l app=frontend
+kubectl logs -l app=mongodb
+
+# Décrire un pod pour plus de détails
+kubectl describe pod <nom-du-pod>
 ```
 
-4. Accéder à l'application :
+**Sortie attendue :**
 
-**Option A - NodePort (développement)** :
+```
+NAME                        READY   STATUS    RESTARTS   AGE
+backend-xxxxxxxxxx-xxxxx    1/1     Running   0          2m
+backend-xxxxxxxxxx-xxxxx    1/1     Running   0          2m
+frontend-xxxxxxxxxx-xxxxx   1/1     Running   0          1m
+frontend-xxxxxxxxxx-xxxxx   1/1     Running   0          1m
+mongodb-xxxxxxxxxx-xxxxx    1/1     Running   0          3m
+```
+
+### Étape 5 : Accéder à l'application
+
+**Méthode 1 : Via Minikube (recommandée)**
+
 ```bash
-# Obtenir l'IP du noeud
-kubectl get nodes -o wide
+# Ouvrir automatiquement l'application dans le navigateur
+minikube service frontend
 
-# Obtenir le port du frontend
-kubectl get service frontend-service -n quiz-app
-
-# Accéder via : http://<NODE_IP>:<NODE_PORT>
+# Ou obtenir l'URL
+minikube service frontend --url
 ```
 
-**Option B - Port forwarding (local)** :
+**Méthode 2 : Via NodePort**
+
 ```bash
-kubectl port-forward -n quiz-app service/frontend-service 3000:80
-# Accéder via : http://localhost:3000
+# Récupérer l'IP de Minikube
+minikube ip
+
+# Récupérer le NodePort du frontend
+kubectl get service frontend
+
+# Accéder à : http://<MINIKUBE_IP>:30080
 ```
 
-**Option C - Minikube** :
+**Méthode 3 : Port forwarding (développement)**
+
 ```bash
-minikube service frontend-service -n quiz-app
+kubectl port-forward service/frontend 3000:80
+
+# Accéder à : http://localhost:3000
 ```
 
-**Option D - LoadBalancer (cloud)** :
-```bash
-# Obtenir l'IP externe
-kubectl get service frontend-service -n quiz-app
-```
+### Étape 6 : Tester l'application
+
+1. Ouvrir l'URL fournie par Minikube
+2. Entrer un nom de joueur
+3. Sélectionner une catégorie et difficulté
+4. Jouer au quiz
+5. Vérifier que le score est sauvegardé dans le leaderboard
 
 ### Mise à jour de l'application
 
-Pour mettre à jour une image :
+Pour mettre à jour après modification du code :
+
 ```bash
-# Mettre à jour l'image
-docker build -t quiz-frontend:v2 ./frontend
-docker tag quiz-frontend:v2 <your-registry>/quiz-frontend:v2
-docker push <your-registry>/quiz-frontend:v2
+# Reconstruire les images
+eval $(minikube docker-env)
+docker build -t quiz-frontend:latest ./frontend
+docker build -t quiz-backend:latest ./backend
 
-# Mettre à jour le déploiement
-kubectl set image deployment/frontend -n quiz-app frontend=<your-registry>/quiz-frontend:v2
+# Redémarrer les pods pour utiliser les nouvelles images
+kubectl rollout restart deployment/frontend
+kubectl rollout restart deployment/backend
 
-# Ou appliquer les manifestes mis à jour
-kubectl apply -f kubernetes/frontend-deployment.yaml
+# Vérifier le rollout
+kubectl rollout status deployment/frontend
+kubectl rollout status deployment/backend
 ```
 
-### Nettoyage
+### Nettoyage et suppression
 
-Pour supprimer toutes les ressources :
+**Supprimer l'application :**
+
 ```bash
-kubectl delete namespace quiz-app
-kubectl delete pv mongodb-pv
+# Supprimer tous les déploiements
+kubectl delete -f k8s/frontend-deployment.yaml
+kubectl delete -f k8s/backend-deployment.yaml
+kubectl delete -f k8s/mongodb-deployment.yaml
+kubectl delete -f k8s/mongodb-pv.yaml
+kubectl delete -f k8s/namespace.yaml
 ```
+
+**Alternative : Script de nettoyage**
+
+```bash
+./scripts/cleanup-k8s.sh
+```
+
+**Arrêter Minikube :**
+
+```bash
+minikube stop
+```
+
+**Supprimer complètement Minikube :**
+
+```bash
+minikube delete
+```
+
+---
 
 ## Structure du projet
 
 ```
-projet/
-├── backend/
+INFO910/
+├── backend/                      # Application backend Node.js
 │   ├── models/
 │   │   └── Score.js              # Modèle Mongoose pour les scores
 │   ├── routes/
-│   │   └── quiz.js               # Routes API pour le quiz
-│   ├── server.js                 # Serveur Express principal
-│   ├── package.json              # Dépendances backend
-│   └── Dockerfile                # Image Docker backend
-├── frontend/
+│   │   └── quiz.js               # Routes API REST du quiz
+│   ├── server.js                 # Point d'entrée du serveur Express
+│   ├── package.json              # Dépendances Node.js
+│   └── Dockerfile                # Image Docker du backend
+│
+├── frontend/                     # Application frontend React
 │   ├── src/
 │   │   ├── App.js                # Composant React principal
-│   │   ├── App.css               # Styles de l'application
+│   │   ├── App.css               # Styles CSS
 │   │   └── index.js              # Point d'entrée React
 │   ├── public/
-│   ├── package.json              # Dépendances frontend
-│   ├── Dockerfile                # Image Docker frontend (multi-stage)
-│   └── nginx.conf                # Configuration Nginx
-├── kubernetes/
-│   ├── namespace.yaml            # Namespace quiz-app
-│   ├── mongodb-pv.yaml           # PersistentVolume pour MongoDB
-│   ├── mongodb-deployment.yaml   # Deployment MongoDB
-│   ├── mongodb-service.yaml      # Service MongoDB (ClusterIP)
-│   ├── backend-deployment.yaml   # Deployment Backend
-│   ├── backend-service.yaml      # Service Backend (ClusterIP)
-│   ├── frontend-deployment.yaml  # Deployment Frontend
-│   └── frontend-service.yaml     # Service Frontend (NodePort)
-├── docker-compose.yml            # Orchestration Docker Compose
+│   ├── package.json              # Dépendances React
+│   ├── Dockerfile                # Image Docker multi-stage (build + nginx)
+│   └── nginx.conf                # Configuration Nginx pour prod
+│
+├── k8s/                          # Manifestes Kubernetes
+│   ├── namespace.yaml            # Namespace todo-app
+│   ├── mongodb-pv.yaml           # PersistentVolume 1Gi
+│   ├── mongodb-deployment.yaml   # Deployment MongoDB + PVC + Service
+│   ├── backend-deployment.yaml   # Deployment Backend + Service
+│   └── frontend-deployment.yaml  # Deployment Frontend + Service NodePort
+│
+├── scripts/                      # Scripts d'automatisation
+│   ├── build-images.sh           # Construction des images Docker
+│   ├── deploy-k8s.sh             # Déploiement automatique sur K8s
+│   └── cleanup-k8s.sh            # Nettoyage des ressources K8s
+│
+├── docker-compose.yml            # Orchestration Docker Compose (dev)
+├── .gitignore                    # Fichiers à ignorer par Git
 └── README.md                     # Cette documentation
 ```
 
-## API Endpoints
+---
 
-### Backend API
+## Fichiers importants
 
-- `GET /api/health` - Health check du serveur
-- `GET /api/quiz/categories` - Récupérer la liste des catégories
-- `GET /api/quiz/questions` - Récupérer des questions de quiz
-  - Query params : `amount`, `category`, `difficulty`
-  - Exemple : `/api/quiz/questions?amount=10&category=9&difficulty=easy`
-- `POST /api/quiz/scores` - Sauvegarder un score
-  - Body : `{ playerName, score, totalQuestions, category, difficulty }`
-- `GET /api/quiz/scores` - Récupérer le leaderboard
-  - Query params : `limit` (défaut: 10)
+### 1. Fichiers de conteneurisation Docker
 
-### Open Trivia Database API (externe)
+#### `docker-compose.yml`
+**Rôle :** Orchestre les 3 conteneurs pour le développement local.
+- Définit les services : `mongodb`, `backend`, `frontend`
+- Configure les réseaux et volumes
+- Gère les dépendances entre services (`depends_on`)
+- Permet un lancement rapide : `docker-compose up --build`
 
-Le backend utilise l'API publique opentdb.com :
-- `https://opentdb.com/api.php` - Questions de quiz
-- `https://opentdb.com/api_category.php` - Liste des catégories
+#### `backend/Dockerfile`
+**Rôle :** Construit l'image Docker du backend Node.js.
+- Base : `node:18-alpine` (image légère)
+- Installe les dépendances npm
+- Expose le port 5000
+- Lance le serveur avec `npm start`
 
-## Variables d'environnement
+#### `frontend/Dockerfile`
+**Rôle :** Construit l'image Docker du frontend en 2 étapes (multi-stage).
+- **Stage 1 (build)** : Compile l'application React avec `npm run build`
+- **Stage 2 (production)** : Sert les fichiers statiques avec Nginx
+- Résultat : Image finale légère (< 50MB) prête pour production
 
-### Backend
-- `PORT` : Port du serveur (défaut: 5000)
-- `MONGODB_URI` : URI de connexion MongoDB (défaut: mongodb://mongodb:27017/quizapp)
+### 2. Manifestes Kubernetes
 
-### Frontend
-- `REACT_APP_API_URL` : URL de l'API backend (défaut: /api)
+#### `k8s/namespace.yaml`
+**Rôle :** Crée un namespace isolé `todo-app` pour l'application.
+- Organise et isole les ressources Kubernetes
+- Facilite la gestion et la suppression de toute l'application
 
-## Dépannage
+#### `k8s/mongodb-pv.yaml`
+**Rôle :** Définit le stockage persistant pour MongoDB.
+- **PersistentVolume** : 1Gi sur `hostPath` (pour Minikube/dev)
+- En production, on utiliserait un volume cloud (EBS, GCE PD, etc.)
+- Garantit que les données survivent aux redémarrages de pods
 
-### Les conteneurs ne démarrent pas
-```bash
-docker-compose down -v
-docker system prune -f
-docker-compose up --build
+#### `k8s/mongodb-deployment.yaml`
+**Rôle :** Déploie MongoDB avec persistance et service.
+- **Deployment** : 1 replica MongoDB 7.0
+- **PersistentVolumeClaim** : Réclame 1Gi de stockage
+- **Service ClusterIP** : Expose MongoDB sur port 27017 (interne uniquement)
+- Ressources : 256Mi-512Mi RAM, 250m-500m CPU
+- Volume monté sur `/data/db` pour persistance
+
+#### `k8s/backend-deployment.yaml`
+**Rôle :** Déploie le backend Node.js avec haute disponibilité.
+- **Deployment** : 2 replicas (load balancing + tolérance aux pannes)
+- **Service ClusterIP** : Expose le backend sur port 5000 (communication interne)
+- **Variables d'environnement** : `MONGODB_URI`, `PORT`
+- **Health checks** :
+  - Liveness probe : vérifie `/api/health` toutes les 10s
+  - Readiness probe : vérifie `/api/health` toutes les 5s
+- Ressources : 128Mi-256Mi RAM, 100m-200m CPU par pod
+
+#### `k8s/frontend-deployment.yaml`
+**Rôle :** Déploie le frontend React avec accès externe.
+- **Deployment** : 2 replicas (haute disponibilité)
+- **Service NodePort** : Expose le frontend sur port 30080 (accès externe)
+- Port mapping : 80 (interne) → 30080 (externe)
+- Ressources : 64Mi-128Mi RAM, 50m-100m CPU par pod
+
+### 3. Scripts d'automatisation
+
+#### `scripts/build-images.sh`
+**Rôle :** Construit automatiquement les images Docker pour Kubernetes.
+- Configure l'environnement Docker de Minikube
+- Build les images `quiz-frontend:latest` et `quiz-backend:latest`
+- Évite d'avoir à taper manuellement les commandes Docker
+
+#### `scripts/deploy-k8s.sh`
+**Rôle :** Déploie automatiquement toute l'application sur Kubernetes.
+- Applique les manifestes dans le bon ordre
+- Attend que chaque service soit prêt avant de continuer
+- Affiche les instructions pour accéder à l'application
+- Équivalent à exécuter manuellement tous les `kubectl apply`
+
+#### `scripts/cleanup-k8s.sh`
+**Rôle :** Nettoie toutes les ressources Kubernetes de l'application.
+- Supprime tous les déploiements, services, PVC
+- Supprime le namespace
+- Réinitialise l'environnement pour un nouveau déploiement
+
+### 4. Code applicatif
+
+#### `backend/server.js`
+**Rôle :** Serveur Express principal du backend.
+- Connexion à MongoDB via Mongoose
+- Configuration CORS pour communication avec frontend
+- Route `/api/health` pour les health checks Kubernetes
+- Import des routes API (`/api/quiz/*`)
+- Gestion d'erreurs et logging
+
+#### `backend/routes/quiz.js`
+**Rôle :** Définit toutes les routes API REST du quiz.
+- `GET /api/quiz/categories` : Liste des catégories
+- `GET /api/quiz/questions` : Questions de l'API Open Trivia
+- `POST /api/quiz/scores` : Sauvegarder un score
+- `GET /api/quiz/scores` : Récupérer le leaderboard
+- Communication avec l'API externe opentdb.com
+
+#### `backend/models/Score.js`
+**Rôle :** Schéma Mongoose pour le stockage des scores.
+- Définit la structure des documents dans MongoDB
+- Champs : `playerName`, `score`, `totalQuestions`, `category`, `difficulty`, `timestamp`
+- Permet les opérations CRUD sur la collection `scores`
+
+#### `frontend/src/App.js`
+**Rôle :** Composant React principal de l'interface.
+- Gestion des états (quiz, questions, scores)
+- Appels API vers le backend via Axios
+- Navigation entre les vues : accueil, quiz, résultats, leaderboard
+- Logique de jeu et calcul des scores
+
+#### `frontend/nginx.conf`
+**Rôle :** Configuration Nginx pour servir l'application React en production.
+- Sert les fichiers statiques depuis `/usr/share/nginx/html`
+- Proxy inverse pour rediriger `/api/*` vers le backend
+- Gestion du routing React (redirection vers `index.html`)
+- Configuration optimisée pour production
+
+---
+
+## Démonstration de conformité au sujet
+
+### ✅ Application conteneurisée (≥ 2 conteneurs)
+
+| Conteneur | Technologie | Port | Rôle |
+|-----------|-------------|------|------|
+| Frontend | React + Nginx | 3000/80 | Interface utilisateur |
+| Backend | Node.js + Express | 5000 | API REST et logique métier |
+| MongoDB | MongoDB 7.0 | 27017 | Stockage persistant |
+
+**Total : 3 conteneurs** ✅
+
+### ✅ Stockage persistant
+
+- **MongoDB** avec volume Docker (`mongodb_data`) en mode Docker Compose
+- **PersistentVolume/PVC** (1Gi) en mode Kubernetes
+- Garantit la persistance des scores entre redémarrages
+
+### ✅ Déploiement Kubernetes original
+
+- 5 manifestes Kubernetes créés spécifiquement pour ce projet
+- Architecture microservices avec réplication (2 replicas backend/frontend)
+- Gestion avancée : health checks, resource limits, persistent storage
+- Scripts de déploiement automatisés
+
+### ✅ Code source inclus
+
+- Sources frontend : `frontend/src/`
+- Sources backend : `backend/`
+- Dockerfiles : `frontend/Dockerfile`, `backend/Dockerfile`
+- Manifestes K8s : `k8s/*.yaml`
+
+---
+
+## APIs et endpoints
+
+### Backend API REST
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/health` | Health check (utilisé par K8s probes) |
+| GET | `/api/quiz/categories` | Liste des catégories de quiz |
+| GET | `/api/quiz/questions` | Récupération de questions (params: `amount`, `category`, `difficulty`) |
+| POST | `/api/quiz/scores` | Sauvegarde d'un score (body: `playerName`, `score`, etc.) |
+| GET | `/api/quiz/scores` | Récupération du leaderboard (param: `limit`) |
+
+### API externe utilisée
+
+- **Open Trivia Database** : [https://opentdb.com](https://opentdb.com)
+  - Fournit gratuitement des questions de quiz dans plus de 20 catégories
+  - API REST publique sans authentification
+
+---
+
+## Aspects techniques avancés
+
+### Réplication et haute disponibilité
+
+- **Backend** : 2 replicas pour load balancing
+- **Frontend** : 2 replicas pour tolérance aux pannes
+- **MongoDB** : 1 replica (peut être augmenté avec ReplicaSet)
+
+### Health checks Kubernetes
+
+Le backend implémente des sondes de santé :
+
+```yaml
+livenessProbe:   # Vérifie que le conteneur est vivant
+  httpGet:
+    path: /api/health
+    port: 5000
+  periodSeconds: 10
+
+readinessProbe:  # Vérifie que le conteneur est prêt à recevoir du trafic
+  httpGet:
+    path: /api/health
+    port: 5000
+  periodSeconds: 5
 ```
 
-### Erreurs de connexion MongoDB
-```bash
-# Vérifier les logs
-docker-compose logs mongodb
-docker-compose logs backend
+### Gestion des ressources
 
-# Redémarrer MongoDB
-docker-compose restart mongodb
+Chaque pod a des limites CPU/RAM définies pour :
+- Éviter la surconsommation de ressources
+- Permettre au scheduler K8s d'optimiser le placement
+- Garantir la stabilité du cluster
+
+### Communication inter-services
+
+```
+Frontend (NodePort 30080)
+    ↓ HTTP
+Backend (ClusterIP 5000)
+    ↓ MongoDB Protocol
+MongoDB (ClusterIP 27017)
 ```
 
-### Le frontend ne charge pas
-```bash
-# Vérifier les logs
-docker-compose logs frontend
+- **ClusterIP** : Services internes uniquement accessibles dans le cluster
+- **NodePort** : Service externe accessible depuis l'extérieur du cluster
 
-# Vérifier la configuration nginx
-docker-compose exec frontend cat /etc/nginx/conf.d/default.conf
-```
+---
 
-### Pods Kubernetes en erreur
-```bash
-# Voir les logs d'un pod
-kubectl logs <pod-name> -n quiz-app
+**Dépôt Git :** https://github.com/SimonCharr/INFO910.git
 
-# Décrire un pod pour voir les événements
-kubectl describe pod <pod-name> -n quiz-app
-
-# Vérifier les ressources
-kubectl top nodes
-kubectl top pods -n quiz-app
-```
-
-### L'API externe ne répond pas
-```bash
-# Tester l'API depuis le backend
-kubectl exec -it <backend-pod> -n quiz-app -- wget -O- https://opentdb.com/api.php?amount=1
-
-# Vérifier les logs backend
-kubectl logs <backend-pod> -n quiz-app
-```
-
-## Détails techniques
-
-### Configurations Kubernetes
-
-#### Ressources allouées
-- **MongoDB** : 256Mi-512Mi RAM, 250m-500m CPU
-- **Backend** : 128Mi-256Mi RAM, 100m-200m CPU (2 replicas)
-- **Frontend** : 64Mi-128Mi RAM, 50m-100m CPU (2 replicas)
-
-#### Stockage persistant
-- **PersistentVolume** : 1Gi, hostPath (pour minikube/dev)
-- **PersistentVolumeClaim** : 1Gi, ReadWriteOnce
-- Stocke les scores des joueurs dans MongoDB
-
-#### Services
-- **MongoDB** : ClusterIP sur port 27017 (interne)
-- **Backend** : ClusterIP sur port 5000 (interne)
-- **Frontend** : NodePort sur port 80 → 30080 (externe)
-
-#### Health Checks
-Le backend dispose de :
-- **Liveness Probe** : GET /api/health toutes les 10s
-- **Readiness Probe** : GET /api/health toutes les 5s
-
-## Fonctionnalités futures possibles
-
-- [ ] Authentification des utilisateurs avec JWT
-- [ ] Mode multijoueur en temps réel avec WebSocket
-- [ ] Statistiques personnelles détaillées
-- [ ] Minuteur pour les questions avec limite de temps
-- [ ] Support multilingue (i18n)
-- [ ] Mode challenge quotidien
-- [ ] Badges et achievements
-- [ ] Export des résultats en PDF
-- [ ] Partage des scores sur réseaux sociaux
-- [ ] Mode hors ligne avec cache
-
-## Licence
-
-Projet académique - Université de Savoie Mont Blanc - Master 2 INFO910
-
-## Contact
-
-Pour toute question, contactez : stephane.talbot@univ-savoie.fr
